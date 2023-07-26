@@ -49,4 +49,4 @@ Schema.methods.comparedPassword = function(candidatePassword, cb) {
 
 // Export the model
 const UserSchema =  mongoose.model('UserSchema', Schema);
-export default  UserSchema;
+module.exports = UserSchema;

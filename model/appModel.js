@@ -1,12 +1,37 @@
 const mongoose = require('mongoose');
 
-const VersionSchema = require('./verModel');
-// Define the schema for our user model
-const Schema = mongoose.Schema({
-    appID: {
+const Version_Schema = new mongoose.Schema({
+    versionName: {
         type: String,
-        required: true,
+        required: false,
     },
+    activeVersion: {
+        type: Boolean,
+        required: false,
+    },
+    ContainerTag: {
+        type: String,
+        required: false,
+    },
+    Registry: {
+        type: String,
+        required: false,
+    },
+    Username: {
+        type: String,
+        required: false,
+    },
+    Password: {
+        type: String,
+        required: false,
+    },
+    createdAt: {
+        type: Date,
+        default: Date.now,
+    },
+})
+// Define the schema for our user model
+const Schema = new mongoose.Schema({
     name: {
         type: String,
         required: true,
@@ -64,7 +89,7 @@ const Schema = mongoose.Schema({
         },
     },
     versions: {
-        type: [VersionSchema],
+        type: [Version_Schema],
         required: false,
     },
     createdAt: {
@@ -73,5 +98,5 @@ const Schema = mongoose.Schema({
     },
 });
 
-const AppSchema = mongoose.model('AppSchema', Schema);
-export default AppSchema;
+const AppSchema = mongoose.model("AppSchema", Schema);
+module.exports = { AppSchema };

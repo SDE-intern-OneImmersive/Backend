@@ -1,10 +1,6 @@
 const mongoose = require('mongoose');
 
-const Schema = mongoose.Schema({
-    versionID: {
-        type: String,
-        required: true,
-    },
+const Schema = new mongoose.Schema({
     versionName: {
         type: String,
         required: false,
@@ -36,4 +32,4 @@ const Schema = mongoose.Schema({
 })
 
 const VersionSchema = mongoose.model('VersionSchema', Schema);
-export default VersionSchema;
+module.exports = VersionSchema;
