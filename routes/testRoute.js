@@ -159,16 +159,23 @@ var mmService = {
 const namespace = "tenant-74334f-oidev";
 
 router.post("/create", (req, res) => {
-    const newModel = new Model({
+    Model.findOne({ name: req.body.name })
+    .then(existingModel => {
+        if (existingModel) {
+      return res.status(400).json({ error: 'Name already exists' });
+        } else {
+        const newModel = new Model({
         name: req.body.name,
-        Registry: req.body.registry
-    });
-
-    newModel
+        Registry: req.body.registry,
+        Link: "matchmaking" + "-" + req.body.name + ".tenant-74334f-oidev.lga1.ingress.coreweave.cloud"
+      });
+      newModel
         .save()
-        .then(newModel => res.json(newModel))
-        .catch(err => console.error(err));
-
+        .then(savedModel => res.json(savedModel))
+        .catch(err => {
+          console.error(err);
+          res.status(500).json({ error: 'Failed to save the model' });
+        });
     const deployname = newModel.name;
     mmDeployment.metadata.name = "mm-deployment" + "-" + deployname;
     mmDeployment.metadata.labels.app = "mm" + "-" + deployname;
@@ -181,13 +188,18 @@ router.post("/create", (req, res) => {
     mmService.metadata.name = "mm-service" + "-" + deployname;
     mmService.spec.selector.app = "mm" + "-" + deployname;
 
-
     const k8sApia = kc.makeApiClient(k8s.AppsV1Api);
     k8sApia.createNamespacedDeployment(namespace, mmDeployment);
     const k8sApib = kc.makeApiClient(k8s.CoreV1Api);
     k8sApib.createNamespacedService(namespace, mmService);
     const k8sApic = kc.makeApiClient(k8s.NetworkingV1Api);
     k8sApic.createNamespacedIngress(namespace, mmIngress);
+    }
+  })
+  .catch(err => {
+    console.error(err);
+    res.status(500).json({ error: 'Database error' });
+  });
 });
 
 router.get("/", async (req, res) => {
