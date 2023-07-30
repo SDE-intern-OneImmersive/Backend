@@ -1,6 +1,22 @@
 const express = require('express');
 const VersionModel = require('../model/verModel');
+const fetcher = require('./fetcher');
 const router = express.Router();
+
+router.get('/deployments/:name', (req, res) => {
+    const { name } = req.params;
+    fetcher.fetchDeployments(name, (error, filteredDeploymentNames) => {
+    if (error) {
+      console.error('Error:', error);
+      res.status(500).json({ error: 'Internal Server Error' });
+    } else {
+    console.log("sending deployment names - middleware")
+      res.json({ deployments: filteredDeploymentNames });
+    }
+  });
+  
+  });
+
 
 router.get('/', async (req, res) => {
     const versions = await VersionModel.find();
