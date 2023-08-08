@@ -2,7 +2,6 @@ const express = require('express');
 const VersionModel = require('../model/verModel');
 const fetcher = require('./fetcher');
 const router = express.Router();
-
 router.get('/deployments/:name', (req, res) => {
     const { name } = req.params;
     fetcher.fetchDeployments(name, (error, filteredDeploymentNames) => {
@@ -14,25 +13,19 @@ router.get('/deployments/:name', (req, res) => {
       res.json({ deployments: filteredDeploymentNames });
     }
   });
-  
   });
-
-
 router.get('/', async (req, res) => {
     const versions = await VersionModel.find();
     res.json(versions);
 });
-
 router.get('/:id', async (req, res) => {
     const version = await VersionModel.findById(req.params.id);
     res.json(version);
 });
-
 router.delete('/:id', async (req, res) => {
     await VersionModel.findByIdAndDelete(req.params.id);
     res.json({ message: 'Version Deleted' });
 });
-
 router.put('/:id', async (req, res) => {
     const { name, active, ContainerTag, Registry, Username, Password } = req.body;
     const newVersion = { name, active, ContainerTag, Registry, Username, Password };
@@ -48,7 +41,6 @@ router.put('/:id', async (req, res) => {
         console.log(err);
     }
 });
-
 router.post('/', async (req, res) => {
     const newVersion = new VersionModel({
         name: req.body.name,
@@ -58,10 +50,8 @@ router.post('/', async (req, res) => {
         Username: req.body.Username,
         Password: req.body.Password,
     });
-
     await newVersion.save()
         .then(newVersion => res.json(newVersion))
         .catch(err => console.error());
 });
-
 module.exports = router;

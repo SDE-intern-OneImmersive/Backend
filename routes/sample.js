@@ -1,6 +1,9 @@
 const k8s = require('@kubernetes/client-node');
 const _ = require('lodash');
 
+const dns = require("dns");
+dns.setDefaultResultOrder("ipv4first")
+
 const kubeconfigText = `
 apiVersion: v1
 clusters:

@@ -1,28 +1,14 @@
 const express = require('express');
 const router = express.Router();
-
 const AppSchema = require('../model/appModel');
-
 router.post('/create', (req, res) => {
     const newApp = new AppSchema({
         name: req.body.name,
     });
-
     newApp.save()
         .then(newApp => res.json(newApp))
         .catch(err => console.error(err));
 });
-
-// router.get('/', async (req, res) => {
-//     try {
-//         const apps = await AppSchema.find({});
-//         res.json(apps);
-//     } catch(err) {
-//         res.status(500).json({ error: 'An error occurred while fetching data.' });
-//         console.error(err)
-//     }
-// });
-
 router.post('/getapps', (req, res) => {
      AppSchema.find({}, (err, apps) => {
         if(err){
@@ -35,17 +21,14 @@ router.post('/getapps', (req, res) => {
         }
      });
   });
-
 router.get('/:id', async (req, res) => {
     const app = await AppSchema.findById(req.params.id);
     res.json(app);
 });
-
 router.delete('/:id', async (req, res) => {
     await AppSchema.findByIdAndDelete(req.params.id);
     res.json({ message: 'App Deleted' });
 });
-
 router.put('/:id', async (req, res) => {
     const { name } = req.body;
     const newApp = { name };
@@ -61,5 +44,4 @@ router.put('/:id', async (req, res) => {
         console.log(err);
     }
 });
-
 module.exports = router;

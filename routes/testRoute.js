@@ -1,9 +1,11 @@
 const express = require("express");
 const router = express.Router();
-const Model = require("../model/testmodel");
+const User = require("../model/User");
+const Application = require("../model/Application");
+const Version = require("../model/Version");
+
 const { default: mongoose } = require("mongoose");
 const k8s = require("@kubernetes/client-node");
-
 const kubeconfigText = `
 apiVersion: v1
 clusters:
@@ -118,7 +120,6 @@ var mmIngress = {
     ],
   },
 };
-
 var mmService = {
   apiVersion: "v1",
   kind: "Service",
@@ -158,33 +159,52 @@ var mmService = {
     type: "ClusterIP",
   },
 };
-
 const namespace = "tenant-74334f-oidev";
-
 router.post("/create", (req, res) => {
-  Model.findOne({ name: req.body.name })
+  Bname = req.body.name;
+  Bregistry = req.body.registry;
+  console.log("Have to create Application with name: " + Bname + " and registry: " + Bregistry);
+  Application.findOne({ name: Bname})
     .then((existingModel) => {
       if (existingModel) {
+        console.log("Application with that already exists");
         return res.status(400).json({ error: "Name already exists" });
       } else {
-        const newModel = new Model({
-          name: req.body.name,
-          Registry: req.body.registry,
-          Link:
-            "matchmaking" +
-            "-" +
-            req.body.name +
-            ".tenant-74334f-oidev.lga1.ingress.coreweave.cloud",
+        const newVersion = new Version({
+          versionname: "0",
+          registry: Bregistry,
+          link: "matchmaking" +
+          "-" +
+          req.body.name +
+          ".tenant-74334f-oidev.lga1.ingress.coreweave.cloud",
+          createdAt: Date.now(),
         });
-        newModel
-          .save()
-          .then((savedModel) => res.json(savedModel))
+        console.log("trying to create version with"+newVersion);
+        newVersion.save()
+          .then((createdVersion) => {
+            console.log("Version created successfully   4"+ createdVersion);
+            const newApplication = new Application({
+              name: Bname, 
+              versions: [createdVersion._id],
+              activeversion: createdVersion._id,
+            });
+            console.log("trying to create application with"+newApplication);
+            newApplication.save()
+              .then(() => {
+                console.log("Application created successfully   3");
+                res.status(201).json({ message: newApplication.name });
+              })
+              .catch((err) => {
+                console.log("Failed to create application   2"+ err);
+                res.status(500).json({ error: "Failed to create application" });
+              });
+          })
           .catch((err) => {
-            console.error(err);
-            res.status(500).json({ error: "Failed to save the model" });
+            console.log("Failed to create version  1");
+            res.status(500).json({ error: "Failed to create version" });
           });
-        const deployname = newModel.name;
-        const registryname = newModel.Registry;
+        const deployname = Bname;
+        const registryname = Bregistry;
         mmDeployment.metadata.name = "mm-deployment" + "-" + deployname;
         mmDeployment.metadata.labels.app = "mm" + "-" + deployname;
         mmDeployment.spec.selector.matchLabels.app = "mm" + "-" + deployname;
@@ -193,19 +213,13 @@ router.post("/create", (req, res) => {
         mmDeployment.spec.template.spec.containers[0].name =
           "mm-containers" + "-" + deployname;
         mmDeployment.spec.template.spec.containers[0].args[3] = deployname;
-        if (registryname.length > 0)
+        if (registryname!= undefined)
           mmDeployment.spec.template.spec.containers[0].args[4] = registryname;
-
-      
         mmIngress.metadata.name = "mm-ingress" + "-" + deployname;
         mmIngress.spec.rules[0].host = "matchmaking" + "-" + deployname + ".tenant-74334f-oidev.lga1.ingress.coreweave.cloud";
         mmIngress.spec.rules[0].http.paths[0].backend.service.name = "mm-service" + "-" + deployname;
-        
-        
-        
         mmService.metadata.name = "mm-service" + "-" + deployname;
         mmService.spec.selector.app = "mm" + "-" + deployname;
-
         const k8sApia = kc.makeApiClient(k8s.AppsV1Api);
         k8sApia.createNamespacedDeployment(namespace, mmDeployment);
         const k8sApib = kc.makeApiClient(k8s.CoreV1Api);
@@ -216,43 +230,56 @@ router.post("/create", (req, res) => {
     })
     .catch((err) => {
       console.error(err);
-      res.status(500).json({ error: "Database error" });
+      console.log("Came here 0");
+      res.status(500).json({ error: "Database ,Server error" });
     });
 });
 
 router.get("/", async (req, res) => {
   try {
-    const models = await Model.find({});
-    res.json(models);
+    const applications = await Application.find({}).populate('activeversion', 'versionname registry createdAt link');
+
+    // Transform the data to the desired response format
+    const responseData = applications.map((app) => {
+      const { _id, name, activeversion } = app;
+      const { versionname, registry, createdAt, link } = activeversion;
+
+      // Format the "createdAt" date to the desired format
+      const formattedCreatedAt = new Date(createdAt).toLocaleString('en-IN', {
+        month: 'long',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+        timeZoneName: 'short',
+      });
+
+      return {
+        _id,
+        name,
+        versionname,
+        registry,
+        createdAt: formattedCreatedAt,
+        link,
+      };
+    });
+
+    res.json(responseData);
   } catch (err) {
-    res.status(500).json({ error: "An error occurred while fetching data." });
+    res.status(500).json({ error: "An error occurred while fetching Applications." });
     console.error(err);
   }
 });
 
-router.get("/:id", async (req, res) => {
-  try {
-    const modelId = req.params.id;
-    if (!mongoose.Types.ObjectId.isValid(modelId))
-      return res.status(404).send("No model with that id");
-    const model = await Model.findById(modelId);
-    res.json(model);
-  } catch (err) {
-    res.status(500).json({ error: "An error occurred while fetching data." });
-    console.error(err);
-  }
-});
 
 router.delete("/:id", async (req, res) => {
   try {
     const id = req.params.id;
     const name = req.query.name;
-
+    console.log("this is in deletion,"+ id + " and hte name is "+ name);
     const tenantname = "tenant-74334f-oidev";
     var deploymentNamei = "mm-deployment" + "-" + name;
     var serviceNamei = "mm-service" + "-" + name;
     var ingressNamei = "mm-ingress" + + "-" + name;
-
     const k8sApi2 = kc.makeApiClient(k8s.AppsV1Api);
     k8sApi2
       .deleteNamespacedDeployment(deploymentNamei, tenantname)
@@ -272,8 +299,6 @@ router.delete("/:id", async (req, res) => {
       .catch((error) => {
         console.error(`Error deleting service: ${error}`);
       });
-
-    
     const k8sApi4 = kc.makeApiClient(k8s.NetworkingV1Api);
     k8sApi4
       .deleteNamespacedIngress(ingressNamei, tenantname)
@@ -282,40 +307,28 @@ router.delete("/:id", async (req, res) => {
       })
       .catch((error) => {
         console.error(`Error deleting ingress: ${error}`);
-      });
-
-    
-    const modelId = req.params.id;
-    if (!mongoose.Types.ObjectId.isValid(modelId))
-      return res.status(404).send("No model with that id");
-    const deletedModel = await Model.findByIdAndDelete(modelId);
-    res.json(deletedModel);
+      });    
+    const appId = req.params.id;
+    const application = await Application.findById(id);
+    console.log("in deletion, application is "+ application);
+    if (!application) {
+      console.log("in deletion, application not found");
+      return res.status(404).json({ message: 'Application not found.' });
+    }
+    const versionsToDelete = application.versions;
+    console.log("in deletion, versions to delete are "+ versionsToDelete);
+    await Version.deleteMany({ _id: { $in: versionsToDelete } });
+    await application.deleteOne();
+    console.log("in deletion, application and versions deleted");
+    res.json({ message: 'Application and associated versions have been deleted successfully.' });
   } catch (err) {
-    res.status(500).json({ error: "An error occurred while fetching data." });
+    console.log("in deletion, error occured"+ err);
+    res.status(500).json({ message: 'An error occurred while deleting the application and its versions.' });
     console.error(err);
   }
 });
 
-router.put("/:id", async (req, res) => {
-  try {
-    const modelId = req.params.id;
-    if (!mongoose.Types.ObjectId.isValid(modelId))
-      return res.status(404).send("No model with that id");
-    let updatedModelData = { ...req.body }; // spread operator to copy the object and avoid
-    // changing the original object when removing the _id
-    delete updatedModelData._id;
-    const updateResult = await Model.updateOne(
-      {
-        _id: mongoose.Types.ObjectId(modelId),
-      },
-      updatedModelData
-    );
-    res.json(updateResult);
-  } catch (err) {
-    res.status(500).json({ error: "An error occurred while fetching data." });
-    console.error(err);
-  }
-});
+
 
 // Exporting
 module.exports = router;
